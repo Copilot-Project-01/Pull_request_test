@@ -1,0 +1,2 @@
+This is a test file to simulate the scenario regarding
+Another line to trigger merge conflict 
