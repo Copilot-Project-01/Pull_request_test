@@ -1,0 +1,26 @@
+{
+  "name": "simple-copilot-mcp-server",
+  "version": "1.0.0",
+  "description": "A simple Copilot MCP (Model Context Protocol) server with basic tools and resources",
+  "type": "module",
+  "main": "mcp-server.js",
+  "bin": {
+    "simple-mcp-server": "./mcp-server.js"
+  },
+  "scripts": {
+    "start": "node mcp-server.js",
+    "test": "node test-client.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "copilot",
+    "ai",
+    "llm"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.1"
+  }
+}
