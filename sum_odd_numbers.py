@@ -4,9 +4,11 @@ Script to sum the first 10 odd numbers.
 The first 10 odd numbers are: 1, 3, 5, 7, 9, 11, 13, 15, 17, 19
 """
 
-def sum_first_n_odd_numbers(n):
+def sum_first_n_odd_numbers(n: int) -> int:
     """
     Calculate the sum of the first n odd numbers.
+    
+    The sum of the first n odd numbers equals n².
     
     Args:
         n (int): Number of odd numbers to sum
@@ -14,11 +16,7 @@ def sum_first_n_odd_numbers(n):
     Returns:
         int: Sum of the first n odd numbers
     """
-    total = 0
-    for i in range(n):
-        odd_number = 2 * i + 1
-        total += odd_number
-    return total
+    return n * n
 
 
 if __name__ == "__main__":
