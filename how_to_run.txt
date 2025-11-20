@@ -1,0 +1,17 @@
+How to Run the Python Script
+=============================
+
+To execute the sum_odd_numbers.py script, use the following command:
+
+    python3 sum_odd_numbers.py
+
+Or alternatively:
+
+    python sum_odd_numbers.py
+
+This will calculate and display the sum of the first 10 odd numbers.
+
+Expected Output:
+----------------
+The first 10 odd numbers are: 1, 3, 5, 7, 9, 11, 13, 15, 17, 19
+The sum of the first 10 odd numbers is: 100
