@@ -168,7 +168,7 @@ def view_database(db_name: str):
         for row in cursor.fetchall():
             table_name = row[0]
             count_cursor = conn.execute(
-                f"SELECT count(*) FROM {_quote_identifier(table_name)}"  # noqa: S608
+                f"SELECT COUNT(*) FROM {_quote_identifier(table_name)}"  # noqa: S608
             )
             row_count = count_cursor.fetchone()[0]
             tables.append({"name": table_name, "row_count": row_count})
