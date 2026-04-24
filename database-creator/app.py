@@ -67,12 +67,11 @@ def _list_databases() -> list[dict]:
             size_bytes = os.path.getsize(filepath)
             # Get table count
             try:
-                conn = sqlite3.connect(filepath)
-                cursor = conn.execute(
-                    "SELECT count(*) FROM sqlite_master WHERE type='table'"
-                )
-                table_count = cursor.fetchone()[0]
-                conn.close()
+                with sqlite3.connect(filepath) as conn:
+                    cursor = conn.execute(
+                        "SELECT count(*) FROM sqlite_master WHERE type='table'"
+                    )
+                    table_count = cursor.fetchone()[0]
             except sqlite3.Error:
                 table_count = 0
             databases.append(
