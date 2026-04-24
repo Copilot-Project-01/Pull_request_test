@@ -7,7 +7,7 @@ import sqlite3
 from flask import Flask, flash, redirect, render_template, request, url_for
 
 app = Flask(__name__)
-app.secret_key = os.urandom(32)
+app.secret_key = os.environ.get("SECRET_KEY", os.urandom(32).hex())
 
 DATABASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "databases")
 os.makedirs(DATABASE_DIR, exist_ok=True)
@@ -29,10 +29,30 @@ def _validate_db_name(name: str) -> str | None:
     return None
 
 
-def _db_path(name: str) -> str:
-    """Return the full file path for a database, ensuring it stays inside DATABASE_DIR."""
-    safe_name = os.path.basename(name)
-    return os.path.join(DATABASE_DIR, f"{safe_name}.db")
+def _safe_db_path(name: str) -> str:
+    """Return the full file path for a database, ensuring it stays inside DATABASE_DIR.
+
+    The name must pass _validate_db_name() before calling this function.
+    An additional realpath check prevents path traversal.
+    """
+    # Build the candidate path using only the basename
+    candidate = os.path.join(DATABASE_DIR, f"{name}.db")
+    # Resolve to an absolute, symlink-free path and verify it is inside DATABASE_DIR
+    resolved = os.path.realpath(candidate)
+    real_db_dir = os.path.realpath(DATABASE_DIR)
+    if not resolved.startswith(real_db_dir + os.sep) and resolved != real_db_dir:
+        raise ValueError("Invalid database path")
+    return resolved
+
+
+def _quote_identifier(name: str) -> str:
+    """Safely quote a SQL identifier by doubling any embedded double quotes.
+
+    The name must already be validated against DB_NAME_PATTERN (which disallows
+    double quotes), but this provides defense-in-depth.
+    """
+    escaped = name.replace('"', '""')
+    return f'"{escaped}"'
 
 
 def _list_databases() -> list[dict]:
@@ -83,7 +103,7 @@ def create_database():
         flash(error, "error")
         return redirect(url_for("index"))
 
-    db_path = _db_path(db_name)
+    db_path = _safe_db_path(db_name)
     if os.path.exists(db_path):
         flash(f"Database '{db_name}' already exists.", "error")
         return redirect(url_for("index"))
@@ -112,7 +132,7 @@ def delete_database(db_name: str):
         flash(error, "error")
         return redirect(url_for("index"))
 
-    db_path = _db_path(db_name)
+    db_path = _safe_db_path(db_name)
     if not os.path.exists(db_path):
         flash(f"Database '{db_name}' not found.", "error")
         return redirect(url_for("index"))
@@ -134,7 +154,7 @@ def view_database(db_name: str):
         flash(error, "error")
         return redirect(url_for("index"))
 
-    db_path = _db_path(db_name)
+    db_path = _safe_db_path(db_name)
     if not os.path.exists(db_path):
         flash(f"Database '{db_name}' not found.", "error")
         return redirect(url_for("index"))
@@ -148,7 +168,7 @@ def view_database(db_name: str):
         for row in cursor.fetchall():
             table_name = row[0]
             count_cursor = conn.execute(
-                f'SELECT count(*) FROM "{table_name}"'  # noqa: S608
+                f"SELECT count(*) FROM {_quote_identifier(table_name)}"  # noqa: S608
             )
             row_count = count_cursor.fetchone()[0]
             tables.append({"name": table_name, "row_count": row_count})
@@ -168,7 +188,7 @@ def create_table(db_name: str):
         flash(error, "error")
         return redirect(url_for("index"))
 
-    db_path = _db_path(db_name)
+    db_path = _safe_db_path(db_name)
     if not os.path.exists(db_path):
         flash(f"Database '{db_name}' not found.", "error")
         return redirect(url_for("index"))
@@ -211,12 +231,13 @@ def create_table(db_name: str):
                 "error",
             )
             return redirect(url_for("view_database", db_name=db_name))
-        column_defs.append(f'"{col_name}" {col_type.upper()}')
+        column_defs.append(f"{_quote_identifier(col_name)} {col_type.upper()}")
 
     try:
         conn = sqlite3.connect(db_path)
         columns_sql = ", ".join(column_defs)
-        conn.execute(f'CREATE TABLE "{table_name}" ({columns_sql})')
+        safe_table = _quote_identifier(table_name)
+        conn.execute(f"CREATE TABLE {safe_table} ({columns_sql})")  # noqa: S608
         conn.commit()
         conn.close()
         flash(f"Table '{table_name}' created in '{db_name}'.", "success")
@@ -227,4 +248,4 @@ def create_table(db_name: str):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=os.environ.get("FLASK_DEBUG", "false").lower() == "true", port=5000)
