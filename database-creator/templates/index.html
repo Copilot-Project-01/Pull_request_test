@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Creator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>&#128451; Database Creator</h1>
+        <p class="subtitle">Create and manage SQLite databases from your browser.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        <div class="card">
+            <h2>Create New Database</h2>
+            <form method="POST" action="{{ url_for('create_database') }}">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="db_name">Database Name</label>
+                        <input type="text" id="db_name" name="db_name"
+                               placeholder="my_database" required
+                               maxlength="64"
+                               pattern="[A-Za-z0-9_-]+"
+                               title="Letters, digits, hyphens, and underscores only">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Database</button>
+                </div>
+                <p class="help-text">Use only letters, digits, hyphens, and underscores. Max 64 characters.</p>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Your Databases</h2>
+            {% if databases %}
+                <table class="db-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Tables</th>
+                            <th>Size</th>
+                            <th style="text-align: right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for db in databases %}
+                        <tr>
+                            <td><strong>{{ db.name }}</strong></td>
+                            <td>{{ db.table_count }}</td>
+                            <td>{{ db.size_kb }} KB</td>
+                            <td>
+                                <div class="actions">
+                                    <a href="{{ url_for('view_database', db_name=db.name) }}" class="btn btn-secondary">View</a>
+                                    <form method="POST" action="{{ url_for('delete_database', db_name=db.name) }}"
+                                          onsubmit="return confirm('Delete database {{ db.name }}?')">
+                                        <button type="submit" class="btn btn-danger">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty-state">
+                    <p>No databases yet. Create one above to get started!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

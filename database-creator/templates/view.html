@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ db_name }} - Database Creator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('index') }}" class="back-link">&larr; Back to all databases</a>
+        <h1>&#128451; {{ db_name }}</h1>
+        <p class="subtitle">Manage tables in this database.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        <div class="card">
+            <h2>Create New Table</h2>
+            <form method="POST" action="{{ url_for('create_table', db_name=db_name) }}">
+                <div class="form-group" style="margin-bottom: 0.75rem">
+                    <label for="table_name">Table Name</label>
+                    <input type="text" id="table_name" name="table_name"
+                           placeholder="users" required
+                           pattern="[A-Za-z0-9_-]+"
+                           title="Letters, digits, hyphens, and underscores only">
+                </div>
+                <div class="form-group" style="margin-bottom: 0.75rem">
+                    <label for="columns">Columns</label>
+                    <input type="text" id="columns" name="columns"
+                           placeholder="name TEXT, age INTEGER, email TEXT" required>
+                    <p class="help-text">
+                        Comma-separated column definitions. Format: <code>column_name TYPE</code>.
+                        Types: TEXT, INTEGER, REAL, BLOB, NUMERIC.
+                    </p>
+                </div>
+                <button type="submit" class="btn btn-primary">Create Table</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Tables</h2>
+            {% if tables %}
+                <table class="db-table">
+                    <thead>
+                        <tr>
+                            <th>Table Name</th>
+                            <th>Rows</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for table in tables %}
+                        <tr>
+                            <td><strong>{{ table.name }}</strong></td>
+                            <td>{{ table.row_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty-state">
+                    <p>No tables yet. Create one above!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
