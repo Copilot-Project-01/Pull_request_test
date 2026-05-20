@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "simple-copilot-server": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/Pull_request_test/mcp-server.js"
+      ],
+      "env": {},
+      "metadata": {
+        "description": "Simple Copilot MCP Server with basic tools"
+      }
+    }
+  }
+}
