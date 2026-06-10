@@ -6,11 +6,11 @@
 # It includes pre-flight checks, system configuration, and cluster setup
 ################################################################################
 
-set -e
+set -euo pipefail
 
 # Configuration Variables
 KUBERNETES_VERSION="1.28.0"
-POD_NETWORK_CIDR="10.244.0.0/16"
+POD_NETWORK_CIDR="192.168.0.0/16"
 SERVICE_CIDR="10.96.0.0/12"
 CONTROL_PLANE_ENDPOINT=""
 LOG_FILE="/var/log/k8s-init.log"
@@ -39,11 +39,6 @@ warning() {
 preflight_checks() {
     log "Starting pre-flight checks..."
     
-    # Check if running as root
-    if [ "$EUID" -ne 0 ]; then
-        error "This script must be run as root"
-    fi
-    
     # Check system requirements
     TOTAL_MEM=$(free -g | awk '/^Mem:/{print $2}')
     if [ "$TOTAL_MEM" -lt 2 ]; then
@@ -52,9 +47,9 @@ preflight_checks() {
     
     # Check if required ports are available
     log "Checking required ports..."
-    REQUIRED_PORTS=(6443 2379 2380 10250 10251 10252)
+    REQUIRED_PORTS=(6443 2379 2380 10250 10259 10257)
     for port in "${REQUIRED_PORTS[@]}"; do
-        if netstat -tuln | grep -q ":$port "; then
+        if ss -tuln | grep -q ":$port "; then
             warning "Port $port is already in use"
         fi
     done
@@ -125,14 +120,15 @@ install_kubernetes() {
     
     # Add Kubernetes repository
     apt-get update
-    apt-get install -y apt-transport-https ca-certificates curl
-    
+    apt-get install -y apt-transport-https ca-certificates curl gnupg
+
+    mkdir -p /etc/apt/keyrings
     curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg
-    
+
     echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list
-    
+
     apt-get update
-    apt-get install -y kubelet kubeadm kubectl
+    apt-get install -y kubelet="${KUBERNETES_VERSION}-00" kubeadm="${KUBERNETES_VERSION}-00" kubectl="${KUBERNETES_VERSION}-00"
     apt-mark hold kubelet kubeadm kubectl
     
     log "Kubernetes components installed"
@@ -141,27 +137,35 @@ install_kubernetes() {
 # Initialize Kubernetes cluster
 initialize_cluster() {
     log "Initializing Kubernetes cluster..."
-    
-    INIT_CMD="kubeadm init --pod-network-cidr=$POD_NETWORK_CIDR --service-cidr=$SERVICE_CIDR"
-    
+
+    local -a init_args=(
+        kubeadm init
+        "--pod-network-cidr=${POD_NETWORK_CIDR}"
+        "--service-cidr=${SERVICE_CIDR}"
+    )
+
     if [ -n "$CONTROL_PLANE_ENDPOINT" ]; then
-        INIT_CMD="$INIT_CMD --control-plane-endpoint=$CONTROL_PLANE_ENDPOINT"
+        init_args+=("--control-plane-endpoint=${CONTROL_PLANE_ENDPOINT}")
     fi
-    
-    $INIT_CMD | tee -a "$LOG_FILE"
-    
+
+    "${init_args[@]}" | tee -a "$LOG_FILE"
+
     log "Cluster initialized successfully"
 }
 
-# Configure kubectl for non-root user
+# Configure kubectl for the invoking user
 configure_kubectl() {
     log "Configuring kubectl..."
-    
-    mkdir -p $HOME/.kube
-    cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-    chown $(id -u):$(id -g) $HOME/.kube/config
-    
-    log "kubectl configured"
+
+    local target_user="${SUDO_USER:-root}"
+    local target_home
+    target_home=$(getent passwd "$target_user" | cut -d: -f6)
+
+    mkdir -p "${target_home}/.kube"
+    cp -i /etc/kubernetes/admin.conf "${target_home}/.kube/config"
+    chown "$(id -u "$target_user"):$(id -g "$target_user")" "${target_home}/.kube/config"
+
+    log "kubectl configured for user $target_user"
 }
 
 # Install network plugin (Calico)
@@ -175,6 +179,12 @@ install_network_plugin() {
 
 # Main execution
 main() {
+    # Root check must come before any log file writes
+    if [ "$EUID" -ne 0 ]; then
+        echo -e "${RED}[ERROR]${NC} This script must be run as root"
+        exit 1
+    fi
+
     log "Starting Kubernetes cluster initialization..."
     
     preflight_checks
